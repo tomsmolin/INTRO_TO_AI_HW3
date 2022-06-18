@@ -14,9 +14,9 @@ def get_states_list(mdp):
 def sum_for_action(mdp, state, action_chosen, u):
     _sum = 0
     actions = ["UP", "DOWN", "RIGHT", "LEFT"]
-    for i, action_taken in enumerate(actions):
+    for action_taken_idx, action_taken in enumerate(actions):
         next_state = mdp.step(state, action_taken)
-        _sum += mdp.transition_function[action_chosen][i] * u[next_state[0]][next_state[1]]
+        _sum += mdp.transition_function[action_chosen][action_taken_idx] * u[next_state[0]][next_state[1]]
     return _sum
 
 
