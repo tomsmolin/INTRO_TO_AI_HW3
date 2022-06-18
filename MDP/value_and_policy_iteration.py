@@ -2,40 +2,22 @@ from copy import deepcopy
 import numpy as np
 
 
-def get_probability(mdp, next_state, state, action_chosen):
-    action_made = action_chosen
-    for action in mdp.actions:
-        if mdp.step(state, action) == next_state:
-            action_made = action
-            break
-
-    action_made_idx = ["UP", "DOWN", "RIGHT", "LEFT"].index(action_made)
-    return mdp.transition_function[action_chosen][action_made_idx]
-
-
-def reward(mdp, state):
-    if mdp.board[state[0]][state[1]] == 'WALL':
-        return None
-    return float(mdp.board[state[0]][state[1]])
-
-
 def get_states_list(mdp):
     states = []
     for r in range(mdp.num_row):
         for c in range(mdp.num_col):
             if mdp.board[r][c] != 'WALL':
-                    states.append((r, c))
+                states.append((r, c))
     return states
 
 
-def possible_next_states(mdp, state):
-    next_states = []
-    for action in mdp.actions:
-        next_state = mdp.step(state, action)
-        if next_state not in next_states:
-            next_states.append(next_state)
-
-    return next_states
+def sum_for_action(mdp, state, action_chosen, u):
+    _sum = 0
+    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
+    for i, action_taken in enumerate(actions):
+        next_state = mdp.step(state, action_taken)
+        _sum += mdp.transition_function[action_chosen][i] * u[next_state[0]][next_state[1]]
+    return _sum
 
 
 def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
@@ -47,35 +29,29 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
     #
 
     # ====== YOUR CODE: ======
-    # raise NotImplementedError
-    U_curr = U_init
+    U_curr = deepcopy(U_init)
     states = get_states_list(mdp)
     row, col = 0, 1
     while True:
-        U, delta = U_curr, 0
+        U, delta = deepcopy(U_curr), 0
         for state in states:
+            if state in mdp.terminal_states:
+                U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]])
+            else:
+                action_sums = []
+                for action_chosen in mdp.actions:
+                    action_sums.append(sum_for_action(mdp, state, action_chosen, U))
 
-            bellman_rhs_max_options = []
-            next_states = possible_next_states(mdp, state)
+                U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]]) + mdp.gamma * max(action_sums)
 
-            for act_chosen in mdp.actions:
-                p_u_elements = []
-                for next_state in next_states:
-                    p_u_elements.append(get_probability(mdp, next_state, state, act_chosen) * U[state[row]][state[col]])
-                action_sum = sum(p_u_elements)
-                bellman_rhs_max_options.append(action_sum)
-
-            U_curr[state[row]][state[col]] = reward(mdp, state) + mdp.gamma * max(bellman_rhs_max_options)
             if abs(U_curr[state[row]][state[col]] - U[state[row]][state[col]]) > delta:
-                delta = abs(U_curr[state[row]][state[col]] - U[state[row]][state[col]])
+                delta = float(abs(U_curr[state[row]][state[col]] - U[state[row]][state[col]]))
 
-        if mdp.gamma == 1 and delta == 0:
+        if mdp.gamma == 1 and delta == 0.0:
             break
 
-        if mdp.gamma != 1 and delta < ((epsilon * (1 - mdp.gamma))/mdp.gamma):
+        if mdp.gamma != 1 and delta < ((epsilon * (1 - mdp.gamma)) / mdp.gamma):
             break
-
-
 
     return U
     # ========================
