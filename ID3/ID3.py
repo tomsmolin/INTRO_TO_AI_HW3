@@ -2,7 +2,7 @@ import math
 
 from DecisonTree import Leaf, Question, DecisionNode, class_counts
 from utils import *
-
+import numpy as np
 """
 Make the imports of python packages needed
 """
@@ -32,7 +32,11 @@ class ID3:
         impurity = 0.0
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        values = np.array(list(counts.values()))
+        sum = np.sum(values)
+        values = values / sum
+        values = -1 * values * np.log2(values)
+        impurity = np.sum(values)
         # ========================
 
         return impurity
@@ -56,7 +60,10 @@ class ID3:
 
         info_gain_value = 0.0
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        total = len(left) + len(right)
+        weighted_left = (len(left)/total) * self.entropy(left, left_labels)
+        weighted_right = (len(right)/total) * self.entropy(right, right_labels)
+        info_gain_value = current_uncertainty - weighted_right - weighted_left
         # ========================
 
         return info_gain_value
