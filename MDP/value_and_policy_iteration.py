@@ -64,11 +64,28 @@ def get_policy(mdp, U):
     #
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError
-    # ========================
+    # raise NotImplementedError
+    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
+    policy = [["-"]*4 for _ in range(3)]
+    for r in range(mdp.num_row):
+        for c in range(mdp.num_col):
+
+            if (r, c) in mdp.terminal_states or mdp.board[r][c] == "WALL":
+                policy[r][c] = mdp.board[r][c]
+
+            else:
+                state = (r, c)
+                action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
+                reward = mdp.board[r][c]
+                max_action_sum = (U[r][c] - float(reward)) / mdp.gamma
+                policy[r][c] = actions[action_sums.index(max_action_sum)]
+    return policy
+# ========================
 
 
 def src_to_dst_probability(mdp, action, src, dst):
+    if src in mdp.terminal_states:
+        return 0
     r, c = 0, 1
     actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     # if abs(dst[c] - src[c]) + abs(dst[r] - src[r]) >= 2:
@@ -86,10 +103,13 @@ def src_to_dst_probability(mdp, action, src, dst):
 
 
 def get_probability_mat(mdp, policy, states):
-    p_mat = np.zeros((3, 4))
+    p_mat = np.zeros((11, 11))
     for src, state_src in enumerate(states):
         for dst, state_dst in enumerate(states):
-            p_mat[src][dst] = src_to_dst_probability(mdp, policy[state_src[0]][state_src[1]], state_src, state_dst)
+            if state_src in mdp.terminal_states:
+                p_mat[src][dst] = 0
+            else:
+                p_mat[src][dst] = src_to_dst_probability(mdp, policy[state_src[0]][state_src[1]], state_src, state_dst)
     return p_mat
 
 
@@ -103,15 +123,14 @@ def policy_evaluation(mdp, policy):
     states = get_states_list(mdp)
     rewards = []
     for state in states:
-        rewards.append(mdp.board[state[0]][state[1]])
+        rewards.append(float(mdp.board[state[0]][state[1]]))
     R = np.array(rewards)
     I = np.identity(11)
     P = get_probability_mat(mdp, policy, states)
-    U_pi = R.dot(np.linalg.inv(I - mdp.gamma * P))
+    U_pi = list(R.dot(np.linalg.inv(I - np.multiply(P, mdp.gamma))))
+    U_to_ret = [[0]*4 for _ in range(3)]
 
-    U_to_ret = [[0]*12 for _ in range(12)]
-
-    for idx, state in states:
+    for idx, state in enumerate(states):
         U_to_ret[state[0]][state[1]] = U_pi[idx]
 
     return U_to_ret
@@ -137,7 +156,7 @@ def policy_iteration(mdp, policy_init):
         for state in states:
             action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
             if max(action_sums) > sum_for_action(mdp, state, policy[state[r]][state[c]], U):
-                policy[state[r]][state[c]] = mdp.actions[mdp.actions.index(max(action_sums))]
+                policy[state[r]][state[c]] = mdp.actions[action_sums.index(max(action_sums))]
                 unchanged = False
         if unchanged:
             break
