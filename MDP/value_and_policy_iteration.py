@@ -38,10 +38,10 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
             if state in mdp.terminal_states:
                 U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]])
             else:
-                action_sums = []
-                for action_chosen in mdp.actions:
-                    action_sums.append(sum_for_action(mdp, state, action_chosen, U))
-                # action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
+                # action_sums = []
+                # for action_chosen in mdp.actions:
+                #     action_sums.append(sum_for_action(mdp, state, action_chosen, U))
+                action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
                 U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]]) + mdp.gamma * max(action_sums)
 
             if abs(U_curr[state[row]][state[col]] - U[state[row]][state[col]]) > delta:
@@ -64,7 +64,6 @@ def get_policy(mdp, U):
     #
 
     # ====== YOUR CODE: ======
-    # raise NotImplementedError
     actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     policy = [["-"]*4 for _ in range(3)]
     for r in range(mdp.num_row):
@@ -84,22 +83,20 @@ def get_policy(mdp, U):
 
 
 def src_to_dst_probability(mdp, action, src, dst):
-    if src in mdp.terminal_states:
-        return 0
     r, c = 0, 1
     actions = ["UP", "DOWN", "RIGHT", "LEFT"]
-    # if abs(dst[c] - src[c]) + abs(dst[r] - src[r]) >= 2:
-    #     return 0
-
-    action_real_move = (dst[r] - src[r], dst[c] - src[c])
-    action_taken = "None"
-    for act, val in mdp.actions.items():
-        if action_real_move == val:
-            action_taken = act
-    if action_taken == "None":
+    if abs(dst[c] - src[c]) + abs(dst[r] - src[r]) >= 2 or src in mdp.terminal_states:
         return 0
 
-    return mdp.transition_function[action][actions.index(action_taken)]
+    actions_taken = []
+    for act in mdp.actions:
+        if mdp.step(src, act) == dst:
+            actions_taken.append(act)
+
+    if len(actions_taken) == 0:
+        return 0
+    sum_prob = sum([mdp.transition_function[action][actions.index(act)] for act in actions_taken])
+    return sum_prob
 
 
 def get_probability_mat(mdp, policy, states):
@@ -127,7 +124,8 @@ def policy_evaluation(mdp, policy):
     R = np.array(rewards)
     I = np.identity(11)
     P = get_probability_mat(mdp, policy, states)
-    U_pi = list(R.dot(np.linalg.inv(I - np.multiply(P, mdp.gamma))))
+    inv_mat = np.linalg.inv(I - np.multiply(P, mdp.gamma))
+    U_pi = list(inv_mat.dot(R))
     U_to_ret = [[0]*4 for _ in range(3)]
 
     for idx, state in enumerate(states):
@@ -143,20 +141,20 @@ def policy_iteration(mdp, policy_init):
     # run the policy iteration algorithm
     # return: the optimal policy
     #
-
     # ====== YOUR CODE: ======
-    # raise NotImplementedError
+    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     policy = deepcopy(policy_init)
-    unchanged = True
     states = get_states_list(mdp)
     r, c = 0, 1
     while True:
         U = policy_evaluation(mdp, policy)
         unchanged = True
         for state in states:
+            if state in mdp.terminal_states:
+                continue
             action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
             if max(action_sums) > sum_for_action(mdp, state, policy[state[r]][state[c]], U):
-                policy[state[r]][state[c]] = mdp.actions[action_sums.index(max(action_sums))]
+                policy[state[r]][state[c]] = actions[action_sums.index(max(action_sums))]
                 unchanged = False
         if unchanged:
             break
