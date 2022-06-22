@@ -41,7 +41,7 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
                 action_sums = []
                 for action_chosen in mdp.actions:
                     action_sums.append(sum_for_action(mdp, state, action_chosen, U))
-
+                # action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
                 U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]]) + mdp.gamma * max(action_sums)
 
             if abs(U_curr[state[row]][state[col]] - U[state[row]][state[col]]) > delta:
@@ -68,6 +68,31 @@ def get_policy(mdp, U):
     # ========================
 
 
+def src_to_dst_probability(mdp, action, src, dst):
+    r, c = 0, 1
+    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
+    # if abs(dst[c] - src[c]) + abs(dst[r] - src[r]) >= 2:
+    #     return 0
+
+    action_real_move = (dst[r] - src[r], dst[c] - src[c])
+    action_taken = "None"
+    for act, val in mdp.actions.items():
+        if action_real_move == val:
+            action_taken = act
+    if action_taken == "None":
+        return 0
+
+    return mdp.transition_function[action][actions.index(action_taken)]
+
+
+def get_probability_mat(mdp, policy, states):
+    p_mat = np.zeros((3, 4))
+    for src, state_src in enumerate(states):
+        for dst, state_dst in enumerate(states):
+            p_mat[src][dst] = src_to_dst_probability(mdp, policy[state_src[0]][state_src[1]], state_src, state_dst)
+    return p_mat
+
+
 def policy_evaluation(mdp, policy):
     # TODO:
     # Given the mdp, and a policy
@@ -75,7 +100,21 @@ def policy_evaluation(mdp, policy):
     #
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError
+    states = get_states_list(mdp)
+    rewards = []
+    for state in states:
+        rewards.append(mdp.board[state[0]][state[1]])
+    R = np.array(rewards)
+    I = np.identity(11)
+    P = get_probability_mat(mdp, policy, states)
+    U_pi = R.dot(np.linalg.inv(I - mdp.gamma * P))
+
+    U_to_ret = [[0]*12 for _ in range(12)]
+
+    for idx, state in states:
+        U_to_ret[state[0]][state[1]] = U_pi[idx]
+
+    return U_to_ret
     # ========================
 
 
@@ -87,5 +126,21 @@ def policy_iteration(mdp, policy_init):
     #
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError
+    # raise NotImplementedError
+    policy = deepcopy(policy_init)
+    unchanged = True
+    states = get_states_list(mdp)
+    r, c = 0, 1
+    while True:
+        U = policy_evaluation(mdp, policy)
+        unchanged = True
+        for state in states:
+            action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
+            if max(action_sums) > sum_for_action(mdp, state, policy[state[r]][state[c]], U):
+                policy[state[r]][state[c]] = mdp.actions[mdp.actions.index(max(action_sums))]
+                unchanged = False
+        if unchanged:
+            break
+
+    return policy
     # ========================
