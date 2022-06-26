@@ -1,6 +1,11 @@
 from copy import deepcopy
 import numpy as np
 
+actions = ["UP",
+           "DOWN",
+           "RIGHT",
+           "LEFT"]
+
 
 def get_states_list(mdp):
     states = []
@@ -13,7 +18,6 @@ def get_states_list(mdp):
 
 def sum_for_action(mdp, state, action_chosen, U):
     _sum = 0
-    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     for action_taken_idx, action_taken in enumerate(actions):
         next_state = mdp.step(state, action_taken)
         _sum += mdp.transition_function[action_chosen][action_taken_idx] * U[next_state[0]][next_state[1]]
@@ -38,9 +42,6 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
             if state in mdp.terminal_states:
                 U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]])
             else:
-                # action_sums = []
-                # for action_chosen in mdp.actions:
-                #     action_sums.append(sum_for_action(mdp, state, action_chosen, U))
                 action_sums = [sum_for_action(mdp, state, action_chosen, U) for action_chosen in mdp.actions]
                 U_curr[state[row]][state[col]] = float(mdp.board[state[row]][state[col]]) + mdp.gamma * max(action_sums)
 
@@ -64,7 +65,6 @@ def get_policy(mdp, U):
     #
 
     # ====== YOUR CODE: ======
-    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     policy = [["-"]*4 for _ in range(3)]
     for r in range(mdp.num_row):
         for c in range(mdp.num_col):
@@ -78,13 +78,13 @@ def get_policy(mdp, U):
                 reward = mdp.board[r][c]
                 max_action_sum = (U[r][c] - float(reward)) / mdp.gamma
                 policy[r][c] = actions[action_sums.index(max_action_sum)]
+
     return policy
 # ========================
 
 
 def src_to_dst_probability(mdp, action, src, dst):
     r, c = 0, 1
-    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     if abs(dst[c] - src[c]) + abs(dst[r] - src[r]) >= 2 or src in mdp.terminal_states:
         return 0
 
@@ -142,7 +142,6 @@ def policy_iteration(mdp, policy_init):
     # return: the optimal policy
     #
     # ====== YOUR CODE: ======
-    actions = ["UP", "DOWN", "RIGHT", "LEFT"]
     policy = deepcopy(policy_init)
     states = get_states_list(mdp)
     r, c = 0, 1
