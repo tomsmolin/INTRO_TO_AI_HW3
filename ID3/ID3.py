@@ -1,6 +1,7 @@
 import math
 
 from DecisonTree import Leaf, Question, DecisionNode, class_counts
+from DecisonTree import unique_vals
 from utils import *
 import numpy as np
 """
@@ -32,6 +33,8 @@ class ID3:
         impurity = 0.0
 
         # ====== YOUR CODE: ======
+        # create a np array of the number of each type of label
+        # for each label calculate the entropy using the equaiton provided in lecture
         values = np.array(list(counts.values()))
         sum = np.sum(values)
         values = values / sum
@@ -82,11 +85,22 @@ class ID3:
         #   - If so, add it to 'true rows', otherwise, add it to 'false rows'.
         #   - Calculate the info gain using the `info_gain` method.
 
-        gain, true_rows, true_labels, false_rows, false_labels = None, None, None, None, None
+        gain, true_rows, true_labels, false_rows, false_labels = None, [], [], [], []
         assert len(rows) == len(labels), 'Rows size should be equal to labels size.'
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        for row, label in zip(rows, labels):
+            if question.match(row): 
+                true_rows.append(row)
+                true_labels.append(label)
+            else:
+                false_rows.append(row)
+                false_labels.append(label)
+        true_rows = np.reshape(true_rows,(len(true_labels),30))
+        true_labels = np.reshape(true_labels,(len(true_labels),))
+        false_rows = np.reshape(false_rows,(len(false_labels),30))
+        false_labels = np.reshape(false_labels,(len(false_labels),))
+        gain = self.info_gain(false_rows, false_labels, true_rows, true_labels, current_uncertainty)
         # ========================
 
         return gain, true_rows, true_labels, false_rows, false_labels
@@ -108,7 +122,16 @@ class ID3:
         current_uncertainty = self.entropy(rows, labels)
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        for colidx in range(rows.shape[1]):
+            unique_values = unique_vals(rows, colidx)
+            for val in unique_values:
+                question = Question(None, colidx, val)
+                gain, true_rows, true_labels, false_rows, false_labels = self.partition(rows, labels, question, current_uncertainty)
+                if gain >= best_gain:
+                    best_gain = gain
+                    best_question = question
+                    best_false_rows, best_false_labels = false_rows, false_labels
+                    best_true_rows, best_true_labels = true_rows, true_labels
         # ========================
 
         return best_gain, best_question, best_true_rows, best_true_labels, best_false_rows, best_false_labels
@@ -130,10 +153,64 @@ class ID3:
         true_branch, false_branch = None, None
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        counts = class_counts(rows, labels)
+        # check if we have only one type of classification in our labels, if so return a leaf
+        if len(list(counts.keys())) == 1: #if all the keys are the same, they all have the same label, return leaf
+            return Leaf(rows, labels)
+        best_gain, best_question, best_true_rows, best_true_labels, best_false_rows, best_false_labels = self.find_best_split(rows, labels)
+        if len(best_false_rows) == 0: #if there are no false examples, return leaf for false branch not sure its needed
+            false_branch = Leaf(best_false_rows, best_false_labels)
+        else: #if we are here, we need to continure splitting the examples, in order to get better results.
+            false_branch = self.build_tree(best_false_rows, best_false_labels)
+        
+        if len(best_true_rows) == 0: #if there are no true examples, return leaf for true branch
+            true_branch = Leaf(best_true_rows, best_true_labels)
+        else: #if we are here, we need to continure splitting the examples, in order to get better results.
+            true_branch = self.build_tree(best_true_rows, best_true_labels)
+
         # ========================
 
         return DecisionNode(best_question, true_branch, false_branch)
+
+    def build_pruned_tree(self, rows, labels, m):
+        """
+        Build the decision Tree in recursion.
+        :param rows: array of samples
+        :param labels: rows data labels.
+        :return: a Question node, This records the best feature / value to ask at this point, depending on the answer.
+                or leaf if we have to prune this branch (in which cases ?)
+
+        """
+        # TODO:
+        #   - Try partitioning the dataset using the feature that produces the highest gain.
+        #   - Recursively build the true, false branches.
+        #   - Build the Question node which contains the best question with true_branch, false_branch as children
+        best_question = None
+        true_branch, false_branch = None, None
+
+        # ====== YOUR CODE: ======
+        #not sure about the split
+        counts = class_counts(rows, labels)
+        if len(list(counts.keys())) <= 1: #if all the keys are the same, they all have the same label, return leaf
+            return Leaf(rows, labels)
+        if rows.shape[0] <= m:
+            return Leaf(rows, labels)
+        best_gain, best_question, best_true_rows, best_true_labels, best_false_rows, best_false_labels = self.find_best_split(rows, labels)
+        if len(best_false_rows) == 0: #if there are no false examples, return leaf for false branch not sure its needed
+            false_branch = Leaf(best_false_rows, best_false_labels)
+        else: 
+            false_branch = self.build_pruned_tree(best_false_rows, best_false_labels,m)
+        
+        if len(best_true_rows) == 0: #if there are no true examples, return leaf for true branch
+            true_branch = Leaf(best_true_rows, best_true_labels)
+        else: 
+            true_branch = self.build_pruned_tree(best_true_rows, best_true_labels,m)
+
+        # ========================
+
+        return DecisionNode(best_question, true_branch, false_branch)
+
+
 
     def fit(self, x_train, y_train):
         """
@@ -144,7 +221,19 @@ class ID3:
         # TODO: Build the tree that fits the input data and save the root to self.tree_root
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        self.tree_root = self.build_tree(x_train, y_train)
+        # ========================
+
+    def pruned_fit(self, x_train, y_train,M):
+        """
+        Trains the ID3 model. By building the tree.
+        :param x_train: A labeled training data.
+        :param y_train: training data labels.
+        """
+        # TODO: Build the tree that fits the input data and save the root to self.tree_root
+
+        # ====== YOUR CODE: ======
+        self.tree_root = self.build_pruned_tree(x_train, y_train,M)
         # ========================
 
     def predict_sample(self, row, node: DecisionNode or Leaf = None):
@@ -162,13 +251,22 @@ class ID3:
         prediction = None
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        while type(node) != Leaf:
+            if node.question.match(row):
+                node = node.true_branch
+            else:
+                node = node.false_branch
+        counts_dict = node.predictions
+        sum = np.sum(list(counts_dict.values()))
+        for  label ,counts in counts_dict.items():
+            if counts >= sum/2:
+                prediction = label    
         # ========================
 
         return prediction
 
     def predict(self, rows):
-        """
+        """ 
         Predict the most likely class for each sample in a given vector.
         :param rows: vector of shape (N,D) where N is the number of samples.
         :return: A vector of shape (N,) containing the predicted classes.
@@ -179,7 +277,7 @@ class ID3:
         y_pred = None
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError
+        y_pred = np.apply_along_axis(self.predict_sample, 1, rows)
         # ========================
 
         return y_pred

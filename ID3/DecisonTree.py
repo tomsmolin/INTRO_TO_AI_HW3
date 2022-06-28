@@ -45,7 +45,7 @@ class Question:
     This class just records a 'column number' (e.g., 0 for Color) and a
     'column value' (e.g., Green). The 'match' method is used to compare
     the feature value in an example to the feature value stored in the
-    question. See the demo below.
+    question. See the demo below. column method is the feature
     """
 
     def __init__(self, column, column_idx, value):
